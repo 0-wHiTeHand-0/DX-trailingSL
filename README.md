@@ -19,7 +19,7 @@ Important: These tokens are equivalent to your Darwinex password. If someone get
 
 ## Step 2:
 
-Run Trail with the `-i` parameter to list your Darwinex accounts:
+[Download the binary](https://github.com/0-wHiTeHand-0/DX-trailingSL/releases) and run Trail with the `-i` parameter to list your Darwinex accounts:
 ```
 ./trial -i -f config.json
 ```
