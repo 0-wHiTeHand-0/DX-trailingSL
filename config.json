@@ -1,0 +1,20 @@
+{
+ "authtoken": "000000-000000-00000",
+ "consumerkey": "0000000000000",
+ "consumersecret": "0000000000000",
+ "refreshtoken": "00000-000000-00000",
+ "darwins": [
+  {
+   "name": "THA",
+   "trailingSL": "90.34"
+  },
+  {
+   "name": "SYO",
+   "trailingSL": "4.21%"
+  },
+  {
+    "name": "ERQ",
+    "trailingSL": "4.63%" 
+  }
+ ]
+}
