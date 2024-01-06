@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,6 +24,7 @@ type Config struct {
 	ConsumerKey    string   `json:"consumerkey"`
 	ConsumerSecret string   `json:"consumersecret"`
 	RefreshToken   string   `json:"refreshtoken"`
+	InvestorID     int      `json:"investorid"`
 	Darwins        []Darwin `json:"darwins"`
 }
 
@@ -168,14 +170,12 @@ func sendPut(wg *sync.WaitGroup, url string, darname string, newstop float64, am
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Println("Usage: ./trail config.json")
-		os.Exit(1)
-	}
-	filename := os.Args[1]
+	filename := flag.String("f", "config.json", "your config file")
+	justinv := flag.Bool("i", false, "gets the available accounts (with their associated investorID) and exits. Use it to get the ID of the investor account you want to use, and add it to the config file")
+	flag.Parse()
 
 	// Read the JSON file
-	file, err := os.ReadFile(filename)
+	file, err := os.ReadFile(*filename)
 	if err != nil {
 		fmt.Println("Error reading config file:", err)
 		os.Exit(1)
@@ -212,33 +212,51 @@ func main() {
 		}
 	}
 
-	invResp := sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts", config)
-	if invResp == "unknown" {
-		fmt.Println("Unknown error while getting the investor ID")
+	if *justinv {
+		invResp := sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts", config)
+		if invResp == "unknown" {
+			fmt.Println("Unknown error while getting the investor ID")
+			os.Exit(1)
+		} else if invResp == "unauthorized" {
+			fmt.Println("Expired authentication token. Refreshing...")
+			config = refresh(config, *filename)
+			invResp = sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts", config)
+		}
+		if invResp == "unknown" || invResp == "unauthorized" {
+			fmt.Println("Unknown error getting the investorID. Can not proceed!")
+			os.Exit(1)
+		}
+
+		// Parse the JSON response
+		var investorAccounts []InvestorAccount
+		err = json.NewDecoder(strings.NewReader(invResp)).Decode(&investorAccounts)
+		if err != nil {
+			fmt.Println("Error parsing JSON response for the investorID query:", err)
+			os.Exit(1)
+		}
+		for _, investorAccount := range investorAccounts {
+			fmt.Println("Account Name:", investorAccount.Name, "-> Investor ID:", investorAccount.ID)
+		}
+		os.Exit(0)
+	}
+
+	// Check if the investorID is set
+	if config.InvestorID == 0 {
+		fmt.Println("Please use the -i flag to get the available accounts and their associated investorID, and add one to the config file")
+		os.Exit(0)
+	}
+
+	posResp := sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts/"+strconv.Itoa(config.InvestorID)+"/currentpositions", config)
+	if posResp == "unknown" {
+		fmt.Println("Unknown error while getting the current positions")
 		os.Exit(1)
-	} else if invResp == "unauthorized" {
+	} else if posResp == "unauthorized" {
 		fmt.Println("Expired authentication token. Refreshing...")
-		config = refresh(config, filename)
-		invResp = sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts", config)
+		config = refresh(config, *filename)
+		posResp = sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts/"+strconv.Itoa(config.InvestorID)+"/currentpositions", config)
 	}
-	if invResp == "unknown" || invResp == "unauthorized" {
-		fmt.Println("Unknown error getting the investorID. Can not proceed!")
-		os.Exit(1)
-	}
-
-	// Parse the JSON response
-	var investorAccounts []InvestorAccount
-	err = json.NewDecoder(strings.NewReader(invResp)).Decode(&investorAccounts)
-	if err != nil {
-		fmt.Println("Error parsing JSON response for the investorID query:", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("I will process the stop-loss orders just for the first investor ID (", investorAccounts[0].ID, ") and the first account (", investorAccounts[0].Name, ")")
-
-	posResp := sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts/"+strconv.Itoa(investorAccounts[0].ID)+"/currentpositions", config)
 	if posResp == "unknown" || posResp == "unauthorized" {
-		fmt.Println("Unknown error getting the investorID. Can not proceed!")
+		fmt.Println("Unknown error getting the current positions. Can not proceed!")
 		os.Exit(1)
 	}
 
@@ -251,7 +269,6 @@ func main() {
 	}
 	wg := new(sync.WaitGroup)
 	flag1 := false
-	flag2 := false
 	for _, position := range positions {
 		posname := position.Pname
 		if strings.Contains(position.Pname, ".") {
@@ -279,11 +296,9 @@ func main() {
 								os.Exit(1)
 							}
 						}
-
 						if magicnumber+0.005 < float64(position.Cquote-threshold.Quote) {
 							wg.Add(1)
-							go sendPut(wg, "https://api.darwinex.com/trading/1.1/investoraccounts/"+strconv.Itoa(investorAccounts[0].ID)+"/conditionalorders/"+strconv.Itoa(threshold.OrderID), darwin.Name, float64(position.Cquote)-magicnumber, threshold.Amount, config)
-							flag2 = true
+							go sendPut(wg, "https://api.darwinex.com/trading/1.1/investoraccounts/"+strconv.Itoa(config.InvestorID)+"/conditionalorders/"+strconv.Itoa(threshold.OrderID), darwin.Name, float64(position.Cquote)-magicnumber, threshold.Amount, config)
 						}
 						break
 					}
@@ -297,9 +312,6 @@ func main() {
 	}
 	if !flag1 {
 		fmt.Println("WARNING: No stop-loss order found for any of the Darwins in the config file.")
-	}
-	if !flag2 {
-		fmt.Println("No stop-loss needs update!")
 	}
 	wg.Wait()
 }
