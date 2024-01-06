@@ -169,7 +169,7 @@ func sendPut(wg *sync.WaitGroup, url string, darname string, newstop float64, am
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Println("Usage: ./test config.json")
+		fmt.Println("Usage: ./trail config.json")
 		os.Exit(1)
 	}
 	filename := os.Args[1]
