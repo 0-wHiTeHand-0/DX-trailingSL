@@ -7,13 +7,13 @@ The trailing stop-loss orders are set in the configuration file, and they can be
 
 Important: Trail only updates existing stop-loss orders. You have to create them manually in Darwinex before using this program.
 
-Important too: Because this program needs to run every time interval, you need a server or a computer that is always on. This program can run in different operating systems, including Linux, MacOS, Windows, *BSD, Android, Solaris, etc, as well as in different architectures, including x86, x86-64, arm, arm64, etc.
+Important too: Because this program needs to run every time interval, you need a server or a computer that is always on. This program can run in different operating systems, including Linux, MacOSX, Windows, *BSD, Android, Solaris, etc, as well as in different architectures, including x86, x86-64, arm, arm64, etc.
 
 ## Steps to use it
 
 ## Step 1:
 
-Login into Darwinex and go to the [Access to DarwinAPI](https://www.darwinex.com/data/darwin-api). There, generate the access tokens for the environment you want (demo or live). You need the 4 tokens: Access Token, Consumer Key, Consumer Secret, and Refresh Token. Write them in the configuration file.
+Login into Darwinex and go to [Access to DarwinAPI](https://www.darwinex.com/data/darwin-api). There, generate the access tokens for the environment you want (demo or live). You need the 4 tokens: Access Token, Consumer Key, Consumer Secret, and Refresh Token. Write them in the configuration file.
 
 Important: These tokens are equivalent to your Darwinex password. If someone gets access to them, would be able to invest/disinvest and play with your money the same way as with your password. Protect your config file, and cancel all the access tokens [in Darwinex](https://www.darwinex.com/data/darwin-api) if you stop using this program.
 
@@ -45,7 +45,7 @@ If nothing is shown, then nothing was modified. This way you can easily log when
 
 Run automatically the command of step 4 each 10 or 5 minutes (your choice), and try to avoid the weekends (the market is closed, so executing Trail does not make sense). Also, do not exceed the [DarwinAPI limits](https://help.darwinex.com/api-walkthrough#throttling).
 
-You can do this by using Cron in MacOS or Linux systems, or Task Scheduler in Windows. You have a lot of information out there about doing this.
+You can do this by using Cron in MacOSX or Linux systems, or Task Scheduler in Windows. You have a lot of information out there about doing this.
 
 Tip for Linux or MacOSX users (or also, what I do):
 
