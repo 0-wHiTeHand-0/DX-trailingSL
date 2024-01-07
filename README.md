@@ -21,7 +21,7 @@ Important: These tokens are equivalent to your Darwinex password. If someone get
 
 [Download the binary](https://github.com/0-wHiTeHand-0/DX-trailingSL/releases) and run Trail with the `-i` parameter to list your Darwinex accounts:
 ```
-./trial -i -f config.json
+./trail -i -f config.json
 ```
 This lists your accounts and their respective investorIDs. Choose the investorID of the account you want to use, and add it to the config file.
 
@@ -33,7 +33,7 @@ Add the Darwin names and trailing stop-loss orders in the configuration file. Ma
 
 Run Trails without the `-i` parameter:
 ```
-./trial -f config.json
+./trail -f config.json
 ```
 If the program modifies a stop-loss order, a line like this is shown:
 ```
