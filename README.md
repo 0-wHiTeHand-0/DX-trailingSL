@@ -31,7 +31,7 @@ Add the Darwin names and trailing stop-loss orders in the configuration file. Ma
 
 ## Step 4:
 
-Run Trails without the `-i` parameter:
+Run Trail without the `-i` parameter:
 ```
 ./trail -f config.json
 ```
