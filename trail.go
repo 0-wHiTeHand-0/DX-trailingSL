@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -81,7 +82,7 @@ func sendGet(url string, conf Config) string {
 	return ret
 }
 
-func saveondisk(conf Config, f string) {
+func saveondisk(conf Config, f string, debug bool) {
 	// Save the new config on disk
 	file, err := json.MarshalIndent(conf, "", " ")
 	if err != nil {
@@ -93,10 +94,15 @@ func saveondisk(conf Config, f string) {
 		fmt.Println("Error writing to file:", err)
 		os.Exit(1)
 	}
-	fmt.Println("New authentication tokens saved on disk!")
+	if debug {
+		fmt.Println("New authentication tokens saved on disk!")
+	}
 }
 
-func refresh(oldconf Config, filename string) Config {
+func refresh(oldconf Config, filename string, debug bool) Config {
+	if debug {
+		log.Println("Expired authentication token. Refreshing...")
+	}
 	// Send POST request
 	client := &http.Client{}
 	data := "grant_type=refresh_token&refresh_token=" + oldconf.RefreshToken
@@ -137,7 +143,7 @@ func refresh(oldconf Config, filename string) Config {
 	oldconf.AuthToken = newref.AccessToken
 	oldconf.RefreshToken = newref.RefreshToken
 
-	saveondisk(oldconf, filename)
+	saveondisk(oldconf, filename, debug)
 
 	return oldconf
 }
@@ -163,15 +169,16 @@ func sendPut(wg *sync.WaitGroup, url string, darname string, newstop float64, am
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK {
-		fmt.Println("Trailing stop-loss order updated for " + darname + ". New stop-loss value: " + strconv.FormatFloat(newstop, 'f', 2, 32))
+		log.Println("Trailing stop-loss order updated for " + darname + ". New stop-loss value: " + strconv.FormatFloat(newstop, 'f', 2, 32))
 	} else {
-		fmt.Println("Unknown error while updating the trailing stop-loss order for " + darname + ". Got status code " + resp.Status)
+		log.Println("Unknown error while updating the trailing stop-loss order for " + darname + ". Got status code " + resp.Status)
 	}
 }
 
 func main() {
-	filename := flag.String("f", "config.json", "your config file")
-	justinv := flag.Bool("i", false, "gets the available accounts (with their associated investorID) and exits. Use it to get the ID of the investor account you want to use, and add it to the config file")
+	filename := flag.String("f", "config.json", "Your config file")
+	debug := flag.Bool("d", false, "Shows debug info")
+	justinv := flag.Bool("i", false, "Gets the available accounts (with their associated investorID) and exits. Use it to get the ID of the investor account you want to use, and add it to the config file")
 	flag.Parse()
 
 	// Read the JSON file
@@ -193,7 +200,7 @@ func main() {
 	for _, darwin := range config.Darwins {
 		regex := regexp.MustCompile(`^\d+(\.\d+)?%?$`)
 		if !regex.MatchString(darwin.TrailingSL) {
-			fmt.Println("Error: trailingSL must be a number or a percentage, e.g. 46.5 or 2.5%")
+			fmt.Println("Error: trailingSL must be a number or a percentage, e.g. 46.5 or 2.53%")
 			os.Exit(1)
 		}
 	}
@@ -218,8 +225,7 @@ func main() {
 			fmt.Println("Unknown error while getting the investor ID")
 			os.Exit(1)
 		} else if invResp == "unauthorized" {
-			fmt.Println("Expired authentication token. Refreshing...")
-			config = refresh(config, *filename)
+			config = refresh(config, *filename, *debug)
 			invResp = sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts", config)
 		}
 		if invResp == "unknown" || invResp == "unauthorized" {
@@ -251,8 +257,7 @@ func main() {
 		fmt.Println("Unknown error while getting the current positions")
 		os.Exit(1)
 	} else if posResp == "unauthorized" {
-		fmt.Println("Expired authentication token. Refreshing...")
-		config = refresh(config, *filename)
+		config = refresh(config, *filename, *debug)
 		posResp = sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts/"+strconv.Itoa(config.InvestorID)+"/currentpositions", config)
 	}
 	if posResp == "unknown" || posResp == "unauthorized" {
@@ -299,6 +304,10 @@ func main() {
 						if magicnumber+0.005 < float64(position.Cquote-threshold.Quote) {
 							wg.Add(1)
 							go sendPut(wg, "https://api.darwinex.com/trading/1.1/investoraccounts/"+strconv.Itoa(config.InvestorID)+"/conditionalorders/"+strconv.Itoa(threshold.OrderID), darwin.Name, float64(position.Cquote)-magicnumber, threshold.Amount, config)
+						} else {
+							if *debug {
+								log.Println("Stop-loss checked but not modified for", darwin.Name)
+							}
 						}
 						break
 					}
