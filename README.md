@@ -53,7 +53,7 @@ A Cron job running each 5 minutes (*/5 * * * *) that launches the following bash
 ```
 #!/bin/bash
 if [ "$(date +%u)" != "7" ] && [ "$(date +%u)" != "6" ]; then
-   /PATH/trail -f /PATH/config.json >> /PATH/out.log
+   /PATH/trail -f /PATH/config.json 2>&1 | tee -a /PATH/out.log
 fi
 ```
-This small script avoids execution during weekends.
+This small script avoids execution during weekends, and logs the output to a file.
