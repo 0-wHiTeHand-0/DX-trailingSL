@@ -43,6 +43,17 @@ If nothing is shown, then nothing was modified. This way you can easily log when
 
 ## Step 5:
 
-Run automatically the command of step 4 each 10 or 5 minutes (your choice). Do not exceed the [DarwinAPI limits](https://help.darwinex.com/api-walkthrough#throttling).
+Run automatically the command of step 4 each 10 or 5 minutes (your choice), and try to avoid the weekends (the market is closed, so executing Trail does not make sense). Also, do not exceed the [DarwinAPI limits](https://help.darwinex.com/api-walkthrough#throttling).
 
 You can do this by using Cron in MacOS or Linux systems, or Task Scheduler in Windows. You have a lot of information out there about doing this.
+
+Tip for Linux or MacOSX users (or also, what I do):
+
+A Cron job running each 5 minutes (*/5 * * * *) that launches the following bash script
+```
+#!/bin/bash
+if [ "$(date +%u)" != "7" ] && [ "$(date +%u)" != "6" ]; then
+   /PATH/trail -f /PATH/config.json >> /PATH/out.log
+fi
+```
+This small script avoids execution during weekends.
