@@ -43,17 +43,13 @@ If nothing is shown, then nothing was modified. This way you can easily log when
 
 ## Step 5:
 
-Run automatically the command of step 4 each 10 or 5 minutes (your choice), and try to avoid the weekends (the market is closed, so executing Trail does not make sense). Also, do not exceed the [DarwinAPI limits](https://help.darwinex.com/api-walkthrough#throttling).
+Run automatically the command of step 4 each 5 or 2 minutes (your choice), and try to slow down during the weekend (the market is closed, so executing Trail is only useful to refresh access tokens). Also, do not exceed the [DarwinAPI limits](https://help.darwinex.com/api-walkthrough#throttling).
 
-You can do this by using Cron in MacOSX or Linux systems, or Task Scheduler in Windows. You have a lot of information out there about doing this.
+You can do this by using Cron in MacOSX or Linux systems, or Task Scheduler in Windows. A lot of information and guides about running jobs periodically at certain time intervals are out there, so it is not explained here.
 
-Tip for Linux or MacOSX users (or also, what I do):
-
-A Cron job running each 5 minutes (*/5 * * * *) that launches the following bash script
+Hint for Linux or MacOSX users. Use cron jobs, for example:
 ```
-#!/bin/bash
-if [ "$(date +%u)" != "7" ] && [ "$(date +%u)" != "6" ]; then
-   /PATH/trail -f /PATH/config.json 2>&1 | tee -a /PATH/out.log
-fi
+*/2 * * * 1-5 /FULLPATH/trail -f /FULLPATH/config.json 2>&1 | tee -a /FULLPATH/out.log   #Weekdays -> market is open
+*/15 * * * 0,6 /FULLPATH/trail -f /FULLPATH/config.json 2>&1 | tee -a /FULLPATH/out.log   #Weekend -> market is closed
 ```
-This small script avoids execution during weekends, and logs the output to a file.
+During weekdays Trail is executed each 2 minutes, and during the weekend it is executed each 15 just to maintain access refreshing the tokens. Also, it takes `stderr` and adds it to the end of the log file.
