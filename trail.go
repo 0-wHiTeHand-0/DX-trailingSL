@@ -52,7 +52,7 @@ func sendGet(url string, conf Config) string {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		log.Println("Error creating request:", err)
 		os.Exit(1)
 	}
 
@@ -62,15 +62,14 @@ func sendGet(url string, conf Config) string {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error sending GET request:", err)
-		os.Exit(1)
+		return "unknown"
 	}
 	defer resp.Body.Close()
 	var ret string
 	if resp.StatusCode == http.StatusOK {
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 			os.Exit(1)
 		}
 		ret = string(bodyBytes)
@@ -86,16 +85,16 @@ func saveondisk(conf Config, f string, debug bool) {
 	// Save the new config on disk
 	file, err := json.MarshalIndent(conf, "", " ")
 	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
+		log.Println("Error marshalling JSON:", err)
 		os.Exit(1)
 	}
 	err = os.WriteFile(f, file, 0600)
 	if err != nil {
-		fmt.Println("Error writing to file:", err)
+		log.Println("Error writing to file:", err)
 		os.Exit(1)
 	}
 	if debug {
-		fmt.Println("New authentication tokens saved on disk!")
+		log.Println("New authentication tokens saved on disk!")
 	}
 }
 
@@ -108,7 +107,7 @@ func refresh(oldconf Config, filename string, debug bool) Config {
 	data := "grant_type=refresh_token&refresh_token=" + oldconf.RefreshToken
 	req, err := http.NewRequest("POST", "https://api.darwinex.com/token", strings.NewReader(data))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		log.Println("Error creating request:", err)
 		os.Exit(1)
 	}
 
@@ -117,13 +116,13 @@ func refresh(oldconf Config, filename string, debug bool) Config {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error refreshing the authn token: ", err)
+		log.Println("Error refreshing the authn token: ", err)
 		os.Exit(1)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Println("Error refreshing the authn token. Got status code", resp.Status)
+		log.Println("Error refreshing the authn token. Got status code", resp.Status)
 		fmt.Println("Please refresh the tokens manually from the Darwinex website, and try again.")
 		os.Exit(1)
 	}
@@ -136,7 +135,7 @@ func refresh(oldconf Config, filename string, debug bool) Config {
 	var newref Refresh
 	err = json.NewDecoder(resp.Body).Decode(&newref)
 	if err != nil {
-		fmt.Println("Error parsing JSON response of the refresh query:", err)
+		log.Println("Error parsing JSON response of the refresh query:", err)
 		os.Exit(1)
 	}
 
@@ -154,7 +153,7 @@ func sendPut(wg *sync.WaitGroup, url string, darname string, newstop float64, am
 	data := `{"amount":` + strconv.FormatFloat(float64(amount), 'f', 2, 32) + `,"quote":` + strconv.FormatFloat(newstop, 'f', 2, 32) + `}`
 	req, err := http.NewRequest("PUT", url, strings.NewReader(data))
 	if err != nil {
-		fmt.Println("Error creating PUT request:", err)
+		log.Println("Error creating PUT request:", err)
 		os.Exit(1)
 	}
 
@@ -164,7 +163,7 @@ func sendPut(wg *sync.WaitGroup, url string, darname string, newstop float64, am
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error sending PUT request:", err)
+		log.Println("Error sending PUT request:", err)
 		os.Exit(1)
 	}
 	defer resp.Body.Close()
@@ -222,14 +221,14 @@ func main() {
 	if *justinv {
 		invResp := sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts", config)
 		if invResp == "unknown" {
-			fmt.Println("Unknown error while getting the investor ID")
+			log.Println("Unknown error while getting the investor ID")
 			os.Exit(1)
 		} else if invResp == "unauthorized" {
 			config = refresh(config, *filename, *debug)
 			invResp = sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts", config)
 		}
 		if invResp == "unknown" || invResp == "unauthorized" {
-			fmt.Println("Unknown error getting the investorID. Can not proceed!")
+			log.Println("Unknown error getting the investorID. Can not proceed!")
 			os.Exit(1)
 		}
 
@@ -237,7 +236,7 @@ func main() {
 		var investorAccounts []InvestorAccount
 		err = json.NewDecoder(strings.NewReader(invResp)).Decode(&investorAccounts)
 		if err != nil {
-			fmt.Println("Error parsing JSON response for the investorID query:", err)
+			log.Println("Error parsing JSON response for the investorID query:", err)
 			os.Exit(1)
 		}
 		for _, investorAccount := range investorAccounts {
@@ -254,14 +253,16 @@ func main() {
 
 	posResp := sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts/"+strconv.Itoa(config.InvestorID)+"/currentpositions", config)
 	if posResp == "unknown" {
-		fmt.Println("Unknown error while getting the current positions")
+		if *debug {
+			log.Println("Unknown error while getting the current positions")
+		}
 		os.Exit(1)
 	} else if posResp == "unauthorized" {
 		config = refresh(config, *filename, *debug)
 		posResp = sendGet("https://api.darwinex.com/investoraccountinfo/2.0/investoraccounts/"+strconv.Itoa(config.InvestorID)+"/currentpositions", config)
 	}
 	if posResp == "unknown" || posResp == "unauthorized" {
-		fmt.Println("Unknown error getting the current positions. Can not proceed!")
+		log.Println("Unknown error getting the current positions. Can not proceed!")
 		os.Exit(1)
 	}
 
@@ -269,7 +270,7 @@ func main() {
 	var positions []CurrentPosition
 	err = json.NewDecoder(strings.NewReader(posResp)).Decode(&positions)
 	if err != nil {
-		fmt.Println("Error parsing JSON response for the currentpositions query:", err)
+		log.Println("Error parsing JSON response for the currentpositions query:", err)
 		os.Exit(1)
 	}
 	wg := new(sync.WaitGroup)
@@ -290,14 +291,14 @@ func main() {
 						if strings.Contains(darwin.TrailingSL, "%") {
 							magicnumber, err = strconv.ParseFloat(strings.ReplaceAll(darwin.TrailingSL, "%", ""), 32)
 							if err != nil {
-								fmt.Println("Error parsing the trailingSL value:", err)
+								log.Println("Error parsing the trailingSL value:", err)
 								os.Exit(1)
 							}
 							magicnumber = (magicnumber / 100) * float64(position.Cquote)
 						} else {
 							magicnumber, err = strconv.ParseFloat(darwin.TrailingSL, 32)
 							if err != nil {
-								fmt.Println("Error parsing the trailingSL value:", err)
+								log.Println("Error parsing the trailingSL value:", err)
 								os.Exit(1)
 							}
 						}
